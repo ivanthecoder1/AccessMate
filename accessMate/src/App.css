@@ -1,42 +1,99 @@
+/* General styling */
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f4;
+  color: #333;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+/* Root container */
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
+  max-width: 900px;
+  width: 100%;
+  margin: 20px auto;
   padding: 2rem;
+  background: #ffffff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
   text-align: center;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* Heading */
+h2 {
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+  color: #0077cc;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+/* Buttons */
+button {
+  background-color: #0077cc;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  font-size: 1rem;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: background 0.3s ease-in-out;
+  margin: 10px 0;
+}
+
+button:hover {
+  background-color: #005fa3;
+}
+
+button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Accessibility Score Section */
+p {
+  font-size: 1.2rem;
+  margin-top: 1rem;
+}
+
+/* Issues List */
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+li {
+  background: #ffdddd;
+  color: #d32f2f;
+  padding: 8px;
+  margin: 5px 0;
+  border-radius: 4px;
+  font-size: 1rem;
+  text-align: left;
+}
+
+@media (max-width: 768px) {
+  #root {
+    max-width: 90%;
+    padding: 1.5rem;
   }
-  to {
-    transform: rotate(360deg);
+
+  h2 {
+    font-size: 1.5rem;
   }
-}
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+  button {
+    font-size: 0.9rem;
+    padding: 10px 16px;
   }
-}
 
-.card {
-  padding: 2em;
-}
+  p {
+    font-size: 1rem;
+  }
 
-.read-the-docs {
-  color: #888;
+  li {
+    font-size: 0.9rem;
+  }
 }
