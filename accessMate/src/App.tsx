@@ -1,10 +1,6 @@
 import { useState } from "react";
 import './App.css';
 
-// Bugs to fix
-// 1. When I check the score, it makes the top part of the extension get cut off
-// 3. Make sure the issues are highlighted on screen, etc
-
 // Function that runs inside the webpage to check accessibility
 function analyzeAccessibility() {
 	let score = 100;
@@ -27,6 +23,11 @@ function analyzeAccessibility() {
 		(img as HTMLElement).style.border = "4px solid red";
 
 		// Automatically add a placeholder alt text
+		// Future: call an API to generate an alt text for an image
+		// 1. Detect image with no alt text
+		// 2. Upload image to API route
+		// 3. Retrieve generated alt text
+		// 4. Store here 
 		(img as HTMLImageElement).alt = "Placeholder alt text";
 	});
 
@@ -81,19 +82,27 @@ function App() {
 		<div style={{ padding: "10px", fontFamily: "Arial" }}>
 			<h2>AccessMate</h2>
 			<button onClick={checkAccessibility}>Check Accessibility</button>
+
 			{score !== null && (
 				<div>
 					<p>Accessibility Score: <strong>{score}%</strong></p>
-					<h4>Issues Detected:</h4>
-					<ul>
-						{issues.map((issue, index) => (
-							<li key={index}>{issue}</li>
-						))}
-					</ul>
+
+					{score === 100 && issues.length === 0 ? (
+						<p style={{ color: "green", fontWeight: "bold" }}>✅ No issues detected!</p>
+					) : (
+						<>
+							<h4>❌ Issues Detected:</h4>
+							<ul>
+								{issues.map((issue, index) => (
+									<li key={index}>{issue}</li>
+								))}
+							</ul>
+						</>
+					)}
 				</div>
 			)}
 		</div>
 	);
-}
+}	  
 
 export default App;
