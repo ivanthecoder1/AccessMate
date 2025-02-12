@@ -78,31 +78,44 @@ function App() {
 		});
 	};
 
+	const closeExtension = () => {
+		window.close();
+	};
+
 	return (
-		<div style={{ padding: "10px", fontFamily: "Arial" }}>
-			<h2>AccessMate</h2>
-			<button onClick={checkAccessibility}>Check Accessibility</button>
+		<div className="extension-container">
+			{/* Top Bar */}
+			<div className="top-bar">
+				<img src="icons/logo.png" alt="AccessMate Logo" className="logo" />
+				<span className="title">AccessMate</span>
+				<button className="close-btn" onClick={closeExtension}>&times;</button>
+			</div>
 
-			{score !== null && (
-				<div>
-					<p>Accessibility Score: <strong>{score}%</strong></p>
+			{/* Main Content */}
+			<div className="content">
+				<button className="scan-btn" onClick={checkAccessibility}>Check Accessibility</button>
 
-					{score === 100 && issues.length === 0 ? (
-						<p style={{ color: "green", fontWeight: "bold" }}>✅ No issues detected!</p>
-					) : (
-						<>
-							<h4>❌ Issues Detected:</h4>
-							<ul>
-								{issues.map((issue, index) => (
-									<li key={index}>{issue}</li>
-								))}
-							</ul>
-						</>
-					)}
-				</div>
-			)}
+				{score !== null && (
+					<div>
+						<p className="score">Accessibility Score: <strong>{score}%</strong></p>
+
+						{score === 100 && issues.length === 0 ? (
+							<p className="no-issues">✅ No issues detected!</p>
+						) : (
+							<>
+								<h4 className="issues-heading">❌ Issues Detected:</h4>
+								<ul className="issues-list">
+									{issues.map((issue, index) => (
+										<li key={index}>{issue}</li>
+									))}
+								</ul>
+							</>
+						)}
+					</div>
+				)}
+			</div>
 		</div>
 	);
-}	  
+}
 
 export default App;
