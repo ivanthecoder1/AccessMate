@@ -33,12 +33,38 @@ function analyzeAccessibility() {
 
 	// Check for low contrast (simplified)
 	document.querySelectorAll("*").forEach((el) => {
-		const color = window.getComputedStyle(el).color;
-		const bgColor = window.getComputedStyle(el).backgroundColor;
+		const element = el as HTMLElement; // Ensure it's an HTMLElement
+	
+		const color = window.getComputedStyle(element).color;
+		const bgColor = window.getComputedStyle(element).backgroundColor;
+	
 		if (color === bgColor) {
 			addIssue("Low contrast detected (-2)", 2);
+	
+			// Convert background color to RGB
+			const bgRGB = parseRGB(bgColor);
+	
+			if (bgRGB) {
+				const brightness = (bgRGB[0] * 0.299 + bgRGB[1] * 0.587 + bgRGB[2] * 0.114);
+				const newColor = brightness > 128 ? "#000000" : "#FFFFFF";
+	
+				console.log(`Fixing contrast for:`, element);
+				console.log(`- Original Color: ${color}`);
+				console.log(`- Background Color: ${bgColor}`);
+				console.log(`- New Text Color: ${newColor}`);
+	
+				element.style.color = newColor;
+			}
 		}
 	});
+	
+
+	// Convert RGB string to an array of numbers
+	function parseRGB(color: string): [number, number, number] | null {
+		const match = color.match(/\d+/g);
+		return match ? [parseInt(match[0]), parseInt(match[1]), parseInt(match[2])] : null;
+	}
+	
 
 	// Check for missing form labels
 	document.querySelectorAll("input:not([aria-label]):not([aria-labelledby]):not([id])").forEach(() => {
