@@ -206,3 +206,20 @@ li {
 .fix-all-btn:hover {
   background-color: #218838;
 }
+
+.protanopia-btn {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  margin: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
+.protanopia-btn:hover {
+  background-color: #0056b3;
+}
