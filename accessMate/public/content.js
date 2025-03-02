@@ -16,6 +16,11 @@ function analyzeAccessibility() {
         score -= penalty;
     };
 
+    // Check for heading hierarchy issues
+    let headingIssues = analyzeHeadingHierarchy();
+    headingIssues.forEach((issue) => addIssue("Heading hierarchy issues", 2));
+
+
     // Check for missing alt text on images
     document.querySelectorAll("img:not([alt])").forEach((img) => {
         addIssue("Missing alt attribute", 2);
@@ -47,12 +52,105 @@ function analyzeAccessibility() {
     return { score: Math.max(score, 0), issues: formattedIssues };
 }
 
+// Function to check for improper heading hieracrhies
+function analyzeHeadingHierarchy() {
+    console.log("🔍 Checking heading hierarchy...");
+    
+    let issues = [];
+    let headings = Array.from(document.querySelectorAll("h1, h2, h3, h4, h5, h6"));
+    let previousLevel = 0;
+    let h1Count = 0;
+
+    headings.forEach((heading, index) => {
+        let level = parseInt(heading.tagName.replace("H", ""), 10);
+        let text = heading.textContent.trim();
+
+        // Detect multiple <h1> elements
+        if (level === 1) {
+            h1Count++;
+            if (h1Count > 1) {
+                issues.push("Multiple <h1> elements found.");
+                heading.style.border = "3px solid orange"; // Highlight issue
+            }
+        }
+
+        // Detect skipped heading levels
+        if (previousLevel && level > previousLevel + 1) {
+            issues.push(`Heading level skipped: <h${previousLevel}> → <h${level}>.`);
+            heading.style.border = "3px solid red"; // Highlight issue
+        }
+
+        // Detect empty headings
+        if (!text) {
+            issues.push(`Empty heading <h${level}> found.`);
+            heading.style.border = "3px solid purple";
+        }
+
+        previousLevel = level;
+    });
+
+    // Detect missing <h1>
+    if (h1Count === 0) {
+        issues.push("No <h1> element found on the page.");
+    }
+
+    return issues;
+}
+
 // Function to fix missing alt attributes
 function fixMissingAltText() {
     document.querySelectorAll("img:not([alt])").forEach((img) => {
         img.alt = "Placeholder alt text";
         img.style.border = "none"; // Remove red border
     });
+}
+
+function fixHeadingHierarchy() {
+    console.log("🛠 Fixing Heading Hierarchy...");
+
+    let headings = Array.from(document.querySelectorAll("h1, h2, h3, h4, h5, h6"));
+    let previousLevel = 0;
+    let h1Count = 0;
+
+    headings.forEach((heading, index) => {
+        let level = parseInt(heading.tagName.replace("H", ""), 10);
+        let text = heading.textContent.trim();
+
+        // Fix multiple <h1> by converting extra ones to <h2>
+        if (level === 1) {
+            h1Count++;
+            if (h1Count > 1) {
+                console.log(`Fixing multiple <h1>: Converting to <h2> → ${text}`);
+                let newHeading = document.createElement("h2");
+                newHeading.innerHTML = heading.innerHTML;
+                heading.replaceWith(newHeading);
+            }
+        }
+
+        // Fix skipped heading levels by lowering it
+        if (previousLevel && level > previousLevel + 1) {
+            console.log(`Fixing skipped heading level: <h${level}> → <h${previousLevel + 1}>`);
+            let newHeading = document.createElement(`h${previousLevel + 1}`);
+            newHeading.innerHTML = heading.innerHTML;
+            heading.replaceWith(newHeading);
+        }
+
+        // Fix empty headings by removing them
+        if (!text) {
+            console.log(`Removing empty <h${level}>.`);
+            heading.remove();
+        }
+
+        previousLevel = level;
+    });
+
+    // Add an <h1> if missing
+    if (h1Count === 0) {
+        console.log("Adding missing <h1> to the document.");
+        let newH1 = document.createElement("h1");
+        newH1.textContent = "Untitled Page";
+        document.body.insertBefore(newH1, document.body.firstChild);
+    }
 }
 
 // Function to fix low contrast
@@ -91,6 +189,7 @@ function fixAllIssues() {
     fixMissingAltText();
     fixLowContrast();
     fixMissingFormLabels();
+    fixHeadingHierarchy();
 }
 
 // Create a mapping of issue types to fix functions
