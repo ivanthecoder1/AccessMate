@@ -39,16 +39,16 @@ function App() {
         window.close();
     };
 
-    // const fixProtanopia = () => {
-    //     if (!chrome?.tabs) return;
+    const fixProtanopia = () => {
+        if (!chrome?.tabs) return;
     
-    //     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    //         if (tabs[0]?.id) {
-    //             console.log("Sending fixProtanopiaColors message...");
-    //             chrome.tabs.sendMessage(tabs[0].id, { action: "fixProtanopiaColors" });
-    //         }
-    //     });
-    // };
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs[0]?.id) {
+                console.log("Sending fixProtanopiaColors message...");
+                chrome.tabs.sendMessage(tabs[0].id, { action: "fixProtanopiaColors" });
+            }
+        });
+    };
 
     return (
         <div className="extension-container">
@@ -59,7 +59,7 @@ function App() {
                 <button className="close-btn" onClick={closeExtension}>&times;</button>
             </div>
 
-            {/* <button className="protanopia-btn" onClick={fixProtanopia}>Fix Protanopia Colors</button> */}
+            <button className="protanopia-btn" onClick={fixProtanopia}>Fix Protanopia Colors</button>
     
             {/* Main Content */}
             <div className="content">

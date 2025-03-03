@@ -215,51 +215,59 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // Color blindness
 // Check list - protanopia, deuteranopia, tritanopia, and monochromacy
+// Parse "rgb(255, 0, 0)" or "rgba(255, 0, 0, 1)" into [r, g, b]
+function parseRGBString(rgbString) {
+    const match = rgbString.match(/rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        return [parseInt(match[1]), parseInt(match[2]), parseInt(match[3])];
+    }
+    return null;
+}
 
-// function fixProtanopiaColors() {
-//     console.log("Fixing Protanopia Colors...");
+// Check if the color is "close to red" using Euclidean distance
+function isCloseToRed(r, g, b, threshold = 80) {
+    // Distance from pure red (255, 0, 0)
+    const distance = Math.sqrt((r - 255) ** 2 + (g - 0) ** 2 + (b - 0) ** 2);
+    return distance < threshold;
+}
 
-//     document.querySelectorAll("*").forEach((el) => {
-//         const element = el;
-//         const color = window.getComputedStyle(element).color;
-//         const bgColor = window.getComputedStyle(element).backgroundColor;
+// For now, only changes red to blue
+function fixProtanopiaColors() {
+    console.log("Fixing Protanopia Colors (approx. matching red → blue)");
 
-//         console.log(`Element:`, element);
-//         console.log(`- Original Text Color: ${color}`);
-//         console.log(`- Original Background Color: ${bgColor}`);
+    document.querySelectorAll("*").forEach((el) => {
+        const style = window.getComputedStyle(el);
+        const color = style.color;
+        const bgColor = style.backgroundColor;
 
-//         // Convert colors to a standard format
-//         const rgbToStandard = (rgb) => rgb.replace(/\s/g, "").toLowerCase();
+        // Parse color strings
+        const parsedColor = parseRGBString(color);
+        const parsedBgColor = parseRGBString(bgColor);
 
-//         const standardColor = rgbToStandard(color);
-//         const standardBgColor = rgbToStandard(bgColor);
+        // If text color is close to red, set it to blue
+        if (parsedColor) {
+            let [r, g, b] = parsedColor;
+            if (isCloseToRed(r, g, b)) {
+                el.style.setProperty("color", "rgb(0,0,255)", "important");
+            }
+        }
 
-//         // Color replacements for Protanopia (Red-Blindness)
-//         const protanopiaColorMap = {
-//             "rgb(255,0,0)": "rgb(0,0,255) !important", // Red → Blue
-//             "rgb(255,69,0)": "rgb(0,128,0) !important", // Orange → Dark Green
-//             "rgb(128,0,128)": "rgb(0,0,255) !important", // Purple → Bright Blue
-//             "rgb(255,255,0)": "rgb(139,69,19) !important", // Yellow → Dark Brown
-//         };
+        // If background color is close to red, set it to blue
+        if (parsedBgColor) {
+            let [r, g, b] = parsedBgColor;
+            if (isCloseToRed(r, g, b)) {
+                el.style.setProperty("background-color", "rgb(0,0,255)", "important");
+            }
+        }
+    });
+}
 
-//         if (protanopiaColorMap[standardColor]) {
-//             element.style.setProperty("color", protanopiaColorMap[standardColor], "important");
-//             console.log(`✔ Changed Text Color to ${protanopiaColorMap[standardColor]}`);
-//         }
-//         if (protanopiaColorMap[standardBgColor]) {
-//             element.style.setProperty("background-color", protanopiaColorMap[standardBgColor], "important");
-//             console.log(`✔ Changed Background Color to ${protanopiaColorMap[standardBgColor]}`);
-//         }
-//     });
-// }
-
-
-// // Listen for messages from `App.tsx`
-// chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-//     if (request.action === "fixProtanopiaColors") {
-//         fixProtanopiaColors();
-//     }
-// });
+// Listen for messages from `App.tsx`
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "fixProtanopiaColors") {
+        fixProtanopiaColors();
+    }
+});
 
 
 // Function to stop auto-playing videos & audio
