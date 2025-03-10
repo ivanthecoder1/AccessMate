@@ -55,7 +55,7 @@ function analyzeAccessibility() {
 // Function to check for improper heading hieracrhies
 function analyzeHeadingHierarchy() {
     console.log("🔍 Checking heading hierarchy...");
-    
+
     let issues = [];
     let headings = Array.from(document.querySelectorAll("h1, h2, h3, h4, h5, h6"));
     let previousLevel = 0;
@@ -208,14 +208,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.issueType === "Fix All") {
             fixAllIssues();
         } else if (issueFixFunctions[request.issueType]) {
-            issueFixFunctions[request.issueType](); 
+            issueFixFunctions[request.issueType]();
         }
     }
 });
 
-// Color blindness
-// Check list - protanopia, deuteranopia, tritanopia, and monochromacy
-// Parse "rgb(255, 0, 0)" or "rgba(255, 0, 0, 1)" into [r, g, b]
+// ====== Color Blindness Helpers & Modes ====== //
+
+// Utility to parse "rgb(255, 0, 0)" or "rgba(255, 0, 0, 1)" into [r, g, b]
 function parseRGBString(rgbString) {
     const match = rgbString.match(/rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)/);
     if (match) {
@@ -224,48 +224,123 @@ function parseRGBString(rgbString) {
     return null;
 }
 
-// Check if the color is "close to red" using Euclidean distance
+// Approx. matching for "red", "green", or "blue" using Euclidean distance
 function isCloseToRed(r, g, b, threshold = 80) {
     // Distance from pure red (255, 0, 0)
-    const distance = Math.sqrt((r - 255) ** 2 + (g - 0) ** 2 + (b - 0) ** 2);
+    const distance = Math.sqrt((r - 255) ** 2 + g ** 2 + b ** 2);
+    return distance < threshold;
+}
+function isCloseToGreen(r, g, b, threshold = 80) {
+    // Distance from pure green (0, 255, 0)
+    const distance = Math.sqrt(r ** 2 + (g - 255) ** 2 + b ** 2);
+    return distance < threshold;
+}
+function isCloseToBlue(r, g, b, threshold = 80) {
+    // Distance from pure blue (0, 0, 255)
+    const distance = Math.sqrt(r ** 2 + g ** 2 + (b - 255) ** 2);
     return distance < threshold;
 }
 
-// For now, only changes red to blue
+// Protanopia: red → blue
 function fixProtanopiaColors() {
     console.log("Fixing Protanopia Colors (approx. matching red → blue)");
+
+    // Text and background transformation 
+    document.querySelectorAll("*").forEach((el) => {
+        const style = window.getComputedStyle(el);
+        const color = style.color;
+        const bgColor = style.backgroundColor;
+
+        const parsedColor = parseRGBString(color);
+        const parsedBgColor = parseRGBString(bgColor);
+
+        if (parsedColor) {
+            const [r, g, b] = parsedColor;
+            if (isCloseToRed(r, g, b)) {
+                el.style.setProperty("color", "rgb(0,0,255)", "important");
+            }
+        }
+        if (parsedBgColor) {
+            const [r, g, b] = parsedBgColor;
+            if (isCloseToRed(r, g, b)) {
+                el.style.setProperty("background-color", "rgb(0,0,255)", "important");
+            }
+        }
+    });
+
+    // Image transformation
+    document.querySelectorAll("img").forEach((img) => {
+        transformProtanopiaImage(img);
+    });
+}
+
+
+// Deuteranopia: green → magenta 
+function fixDeuteranopiaColors() {
+    console.log("Fixing Deuteranopia Colors (approx. matching green → magenta)");
 
     document.querySelectorAll("*").forEach((el) => {
         const style = window.getComputedStyle(el);
         const color = style.color;
         const bgColor = style.backgroundColor;
 
-        // Parse color strings
         const parsedColor = parseRGBString(color);
         const parsedBgColor = parseRGBString(bgColor);
 
-        // If text color is close to red, set it to blue
+        // If text color is close to green, set it to magenta
         if (parsedColor) {
-            let [r, g, b] = parsedColor;
-            if (isCloseToRed(r, g, b)) {
-                el.style.setProperty("color", "rgb(0,0,255)", "important");
+            const [r, g, b] = parsedColor;
+            if (isCloseToGreen(r, g, b)) {
+                el.style.setProperty("color", "rgb(255,0,255)", "important");
             }
         }
-
-        // If background color is close to red, set it to blue
+        // If background color is close to green, set it to magenta
         if (parsedBgColor) {
-            let [r, g, b] = parsedBgColor;
-            if (isCloseToRed(r, g, b)) {
-                el.style.setProperty("background-color", "rgb(0,0,255)", "important");
+            const [r, g, b] = parsedBgColor;
+            if (isCloseToGreen(r, g, b)) {
+                el.style.setProperty("background-color", "rgb(255,0,255)", "important");
             }
         }
     });
 }
 
-// Listen for messages from `App.tsx`
+// Tritanopia: blue → green 
+function fixTritanopiaColors() {
+    console.log("Fixing Tritanopia Colors (approx. matching blue → green)");
+
+    document.querySelectorAll("*").forEach((el) => {
+        const style = window.getComputedStyle(el);
+        const color = style.color;
+        const bgColor = style.backgroundColor;
+
+        const parsedColor = parseRGBString(color);
+        const parsedBgColor = parseRGBString(bgColor);
+
+        // If text color is close to blue, set it to green
+        if (parsedColor) {
+            const [r, g, b] = parsedColor;
+            if (isCloseToBlue(r, g, b)) {
+                el.style.setProperty("color", "rgb(0,255,0)", "important");
+            }
+        }
+        // If background color is close to blue, set it to green
+        if (parsedBgColor) {
+            const [r, g, b] = parsedBgColor;
+            if (isCloseToBlue(r, g, b)) {
+                el.style.setProperty("background-color", "rgb(0,255,0)", "important");
+            }
+        }
+    });
+}
+
+// Listen for messages from `App.tsx` for color-blindness modes
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "fixProtanopiaColors") {
         fixProtanopiaColors();
+    } else if (request.action === "fixDeuteranopiaColors") {
+        fixDeuteranopiaColors();
+    } else if (request.action === "fixTritanopiaColors") {
+        fixTritanopiaColors();
     }
 });
 

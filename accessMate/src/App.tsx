@@ -50,6 +50,24 @@ function App() {
         });
     };
 
+    const fixDeuteranopia = () => {
+        if (!chrome?.tabs) return;
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs[0]?.id) {
+            chrome.tabs.sendMessage(tabs[0].id, { action: "fixDeuteranopiaColors" });
+          }
+        });
+      };
+      
+      const fixTritanopia = () => {
+        if (!chrome?.tabs) return;
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs[0]?.id) {
+            chrome.tabs.sendMessage(tabs[0].id, { action: "fixTritanopiaColors" });
+          }
+        });
+      };
+
     return (
         <div className="extension-container">
             {/* Top Bar */}
@@ -59,7 +77,9 @@ function App() {
                 <button className="close-btn" onClick={closeExtension}>&times;</button>
             </div>
 
-            <button className="protanopia-btn" onClick={fixProtanopia}>Fix Protanopia Colors</button>
+            <button className="color-blind-btn" onClick={fixProtanopia}>Fix Protanopia Colors</button>
+            <button className="color-blind-btn" onClick={fixDeuteranopia}>Deuteranopia Mode</button>
+            <button className="color-blind-btn" onClick={fixTritanopia}>Tritanopia Mode</button>
     
             {/* Main Content */}
             <div className="content">

@@ -207,7 +207,7 @@ li {
   background-color: #218838;
 }
 
-.protanopia-btn {
+.color-blind-btn {
   background-color: #007bff;
   color: white;
   border: none;
@@ -220,6 +220,6 @@ li {
   text-align: center;
 }
 
-.protanopia-btn:hover {
+.color-blind-btn:hover {
   background-color: #0056b3;
 }
