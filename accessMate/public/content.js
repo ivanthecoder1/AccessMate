@@ -184,6 +184,10 @@ function fixMissingFormLabels() {
     });
 }
 
+// Function to make small font sizes larger for visually impaired users
+// Find all font size lower than 12, and increase to 12
+
+
 // Function to fix all issues
 function fixAllIssues() {
     fixMissingAltText();
@@ -224,28 +228,76 @@ function parseRGBString(rgbString) {
     return null;
 }
 
-// Approx. matching for "red", "green", or "blue" using Euclidean distance
+// Approximate matching using Euclidean distance
 function isCloseToRed(r, g, b, threshold = 80) {
-    // Distance from pure red (255, 0, 0)
     const distance = Math.sqrt((r - 255) ** 2 + g ** 2 + b ** 2);
     return distance < threshold;
 }
 function isCloseToGreen(r, g, b, threshold = 80) {
-    // Distance from pure green (0, 255, 0)
     const distance = Math.sqrt(r ** 2 + (g - 255) ** 2 + b ** 2);
     return distance < threshold;
 }
 function isCloseToBlue(r, g, b, threshold = 80) {
-    // Distance from pure blue (0, 0, 255)
     const distance = Math.sqrt(r ** 2 + g ** 2 + (b - 255) ** 2);
     return distance < threshold;
 }
 
-// Protanopia: red → blue
-function fixProtanopiaColors() {
-    console.log("Fixing Protanopia Colors (approx. matching red → blue)");
+// ===== Image Overlay Helper =====
+// Wraps an image in a container (if not already) and adds an overlay
+function overlayImageFilter(img, overlayColor) {
+    // Wrap image in a container if not already wrapped
+    if (!img.parentElement.classList.contains("image-filter-container")) {
+        const container = document.createElement("div");
+        container.classList.add("image-filter-container");
+        container.style.position = "relative";
+        container.style.display = "inline-block";
+        // Insert container before the image and then move the image inside it
+        img.parentElement.insertBefore(container, img);
+        container.appendChild(img);
+    }
+    // Ensure the image is positioned beneath the overlay
+    img.style.position = "relative";
+    img.style.zIndex = "1";
 
-    // Text and background transformation 
+    // Look for an existing overlay element; if not found, create one
+    let overlay = img.parentElement.querySelector(".image-filter-overlay");
+    if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.classList.add("image-filter-overlay");
+        overlay.style.position = "absolute";
+        overlay.style.top = "0";
+        overlay.style.left = "0";
+        overlay.style.width = "100%";
+        overlay.style.height = "100%";
+        overlay.style.pointerEvents = "none"; // allow interactions to pass through
+        overlay.style.background = overlayColor; // e.g., "rgba(255,0,0,0.3)"
+        overlay.style.zIndex = "2"; // ensure overlay is on top
+        img.parentElement.appendChild(overlay);
+    } else {
+        // Update overlay color if it already exists
+        overlay.style.background = overlayColor;
+    }
+}
+
+
+// ===== Color-Blindness Modes ===== //
+
+// Define CSS filter strings for images in each mode
+
+// Blue Filter
+const PROTANOPIA_FILTER = "grayscale(30%) brightness(90%) sepia(20%) hue-rotate(200deg) saturate(300%) contrast(1.2)";
+
+// Magenta filter 
+const DEUTERANOPIA_FILTER = "grayscale(20%) brightness(90%) sepia(30%) hue-rotate(300deg) saturate(400%) contrast(1.2)";
+
+// Green filter
+const TRITANOPIA_FILTER = "grayscale(20%) brightness(90%) sepia(10%) hue-rotate(90deg) saturate(400%) contrast(1.2)";
+
+// Protanopia: red → blue for text/background; for images, apply a CSS filter
+function fixProtanopiaColors() {
+    console.log("Fixing Protanopia Colors");
+
+    // Process text and background colors
     document.querySelectorAll("*").forEach((el) => {
         const style = window.getComputedStyle(el);
         const color = style.color;
@@ -268,16 +320,15 @@ function fixProtanopiaColors() {
         }
     });
 
-    // Image transformation
+    // Process images: apply CSS filter
     document.querySelectorAll("img").forEach((img) => {
-        transformProtanopiaImage(img);
+        img.style.filter = PROTANOPIA_FILTER;
     });
 }
 
-
-// Deuteranopia: green → magenta 
+// Deuteranopia: green → magenta for text/background; for images, apply a CSS filter
 function fixDeuteranopiaColors() {
-    console.log("Fixing Deuteranopia Colors (approx. matching green → magenta)");
+    console.log("Fixing Deuteranopia Colors");
 
     document.querySelectorAll("*").forEach((el) => {
         const style = window.getComputedStyle(el);
@@ -287,14 +338,12 @@ function fixDeuteranopiaColors() {
         const parsedColor = parseRGBString(color);
         const parsedBgColor = parseRGBString(bgColor);
 
-        // If text color is close to green, set it to magenta
         if (parsedColor) {
             const [r, g, b] = parsedColor;
             if (isCloseToGreen(r, g, b)) {
                 el.style.setProperty("color", "rgb(255,0,255)", "important");
             }
         }
-        // If background color is close to green, set it to magenta
         if (parsedBgColor) {
             const [r, g, b] = parsedBgColor;
             if (isCloseToGreen(r, g, b)) {
@@ -302,11 +351,16 @@ function fixDeuteranopiaColors() {
             }
         }
     });
+
+    // Process images: apply CSS filter
+    document.querySelectorAll("img").forEach((img) => {
+        img.style.filter = DEUTERANOPIA_FILTER;
+    });
 }
 
-// Tritanopia: blue → green 
+// Tritanopia: blue → green for text/background; for images, apply a CSS filter
 function fixTritanopiaColors() {
-    console.log("Fixing Tritanopia Colors (approx. matching blue → green)");
+    console.log("Fixing Tritanopia Colors");
 
     document.querySelectorAll("*").forEach((el) => {
         const style = window.getComputedStyle(el);
@@ -316,20 +370,23 @@ function fixTritanopiaColors() {
         const parsedColor = parseRGBString(color);
         const parsedBgColor = parseRGBString(bgColor);
 
-        // If text color is close to blue, set it to green
         if (parsedColor) {
             const [r, g, b] = parsedColor;
             if (isCloseToBlue(r, g, b)) {
                 el.style.setProperty("color", "rgb(0,255,0)", "important");
             }
         }
-        // If background color is close to blue, set it to green
         if (parsedBgColor) {
             const [r, g, b] = parsedBgColor;
             if (isCloseToBlue(r, g, b)) {
                 el.style.setProperty("background-color", "rgb(0,255,0)", "important");
             }
         }
+    });
+
+    // Process images: apply CSS filter
+    document.querySelectorAll("img").forEach((img) => {
+        img.style.filter = TRITANOPIA_FILTER;
     });
 }
 
