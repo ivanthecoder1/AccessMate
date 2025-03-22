@@ -27,6 +27,17 @@ function analyzeAccessibility() {
         img.style.border = "4px solid red";
     });
 
+    // Check for small fonts
+    document.querySelectorAll("*").forEach((el) => {
+        const computedFontSize = window.getComputedStyle(el).fontSize;
+        if (computedFontSize && computedFontSize.endsWith("px")) {
+            const size = parseFloat(computedFontSize);
+            if (size < 12) {
+                addIssue("Small font size", 2);
+            }
+        }
+    });
+
     // Check for low contrast
     document.querySelectorAll("*").forEach((el) => {
         const element = el;
@@ -184,9 +195,20 @@ function fixMissingFormLabels() {
     });
 }
 
-// Function to make small font sizes larger for visually impaired users
-// Find all font size lower than 12, and increase to 12
-
+// Function to fix small fonts: sets any computed font size below 12px to 12px
+function fixSmallFonts() {
+    console.log("Fixing small fonts (increasing font size to 12px where needed)...");
+    document.querySelectorAll("*").forEach((el) => {
+        const computedStyle = window.getComputedStyle(el);
+        const fontSize = computedStyle.fontSize;
+        if (fontSize && fontSize.endsWith("px")) {
+            let numericSize = parseFloat(fontSize);
+            if (numericSize < 12) {
+                el.style.fontSize = "12px";
+            }
+        }
+    });
+}
 
 // Function to fix all issues
 function fixAllIssues() {
@@ -194,6 +216,7 @@ function fixAllIssues() {
     fixLowContrast();
     fixMissingFormLabels();
     fixHeadingHierarchy();
+    fixSmallFonts();
 }
 
 // Create a mapping of issue types to fix functions
@@ -201,6 +224,7 @@ const issueFixFunctions = {
     "Missing alt attribute": fixMissingAltText,
     "Low contrast detected": fixLowContrast,
     "Form input without a label": fixMissingFormLabels,
+    "Small font size": fixSmallFonts
 };
 
 // Listen for messages from the popup (App.tsx)
