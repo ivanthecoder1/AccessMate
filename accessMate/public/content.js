@@ -5,6 +5,8 @@ function analyzeAccessibility() {
         "Missing alt attribute": { count: 0, fix: fixMissingAltText },
         "Low contrast detected": { count: 0, fix: fixLowContrast },
         "Form input without a label": { count: 0, fix: fixMissingFormLabels },
+        "Small font size": { count: 0, fix: fixSmallFonts },
+        "Missing PDF description": { count: 0, fix: fixMissingPdfDescriptions }
     };
 
     const addIssue = (issue, penalty) => {
@@ -53,6 +55,24 @@ function analyzeAccessibility() {
     document.querySelectorAll("input:not([aria-label]):not([aria-labelledby]):not([id])").forEach(() => {
         addIssue("Form input without a label", 2);
     });
+
+    // For anchor links pointing to a PDF
+  document.querySelectorAll('a[href*=".pdf"]').forEach((link) => {
+    const text = link.textContent.trim();
+    const ariaLabel = link.getAttribute("aria-label");
+    if (text === "" && !ariaLabel) {
+      addIssue("Missing PDF description", 2);
+      link.style.border = "4px dashed red"; // Visual cue for testing
+    }
+  });
+
+  // For embedded PDFs via <object> or <embed>
+  document.querySelectorAll('object[data*=".pdf"], embed[src*=".pdf"]').forEach((el) => {
+    if (!el.hasAttribute("aria-label")) {
+      addIssue("Missing PDF description", 2);
+      el.style.border = "4px dashed red"; // Visual cue for testing
+    }
+  });
 
     // Convert `issueCounts` into an array of objects with `{ type, count }`
     const formattedIssues = Object.keys(issueCounts).map((issue) => ({
@@ -210,6 +230,28 @@ function fixSmallFonts() {
     });
 }
 
+// Function to fix missing PDF descriptions (for links and embedded PDFs)
+function fixMissingPdfDescriptions() {
+    // Fix PDF links
+    document.querySelectorAll('a[href*=".pdf"]').forEach((link) => {
+        const text = link.textContent.trim();
+        const ariaLabel = link.getAttribute("aria-label");
+        if (text === "" && !ariaLabel) {
+            link.setAttribute("aria-label", "PDF Document");
+            link.textContent = "PDF Document";
+            link.style.border = "none"; // Remove visual cue after fix
+        }
+    });
+
+    // Fix embedded PDFs
+    document.querySelectorAll('object[data*=".pdf"], embed[src*=".pdf"]').forEach((el) => {
+        if (!el.hasAttribute("aria-label")) {
+            el.setAttribute("aria-label", "Embedded PDF Document");
+            el.style.border = "none"; // Remove visual cue after fix
+        }
+    });
+}
+
 // Function to fix all issues
 function fixAllIssues() {
     fixMissingAltText();
@@ -217,6 +259,7 @@ function fixAllIssues() {
     fixMissingFormLabels();
     fixHeadingHierarchy();
     fixSmallFonts();
+    fixMissingPdfDescriptions();
 }
 
 // Create a mapping of issue types to fix functions
@@ -224,7 +267,8 @@ const issueFixFunctions = {
     "Missing alt attribute": fixMissingAltText,
     "Low contrast detected": fixLowContrast,
     "Form input without a label": fixMissingFormLabels,
-    "Small font size": fixSmallFonts
+    "Small font size": fixSmallFonts,
+    "Missing PDF description": fixMissingPdfDescriptions
 };
 
 // Listen for messages from the popup (App.tsx)
