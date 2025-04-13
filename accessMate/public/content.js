@@ -6,7 +6,8 @@ function analyzeAccessibility() {
         "Low contrast detected": { count: 0, fix: fixLowContrast },
         "Form input without a label": { count: 0, fix: fixMissingFormLabels },
         "Small font size": { count: 0, fix: fixSmallFonts },
-        "Missing PDF description": { count: 0, fix: fixMissingPdfDescriptions }
+        "Missing PDF description": { count: 0, fix: fixMissingPdfDescriptions },
+        "Missing link label": { count: 0, fix: fixMissingLinkLabels }
     };
 
     const addIssue = (issue, penalty) => {
@@ -57,22 +58,35 @@ function analyzeAccessibility() {
     });
 
     // For anchor links pointing to a PDF
-  document.querySelectorAll('a[href*=".pdf"]').forEach((link) => {
-    const text = link.textContent.trim();
-    const ariaLabel = link.getAttribute("aria-label");
-    if (text === "" && !ariaLabel) {
-      addIssue("Missing PDF description", 2);
-      link.style.border = "4px dashed red"; // Visual cue for testing
-    }
-  });
+    document.querySelectorAll('a[href*=".pdf"]').forEach((link) => {
+        const text = link.textContent.trim();
+        const ariaLabel = link.getAttribute("aria-label");
+        if (text === "" && !ariaLabel) {
+            addIssue("Missing PDF description", 2);
+            link.style.border = "4px dashed red"; // Visual cue for testing
+        }
+    });
 
-  // For embedded PDFs via <object> or <embed>
-  document.querySelectorAll('object[data*=".pdf"], embed[src*=".pdf"]').forEach((el) => {
-    if (!el.hasAttribute("aria-label")) {
-      addIssue("Missing PDF description", 2);
-      el.style.border = "4px dashed red"; // Visual cue for testing
-    }
-  });
+    // Check for PDF links missing descriptions
+    document.querySelectorAll('a[href*=".pdf"]').forEach((link) => {
+        const text = link.textContent.trim();
+        const ariaLabel = link.getAttribute("aria-label");
+        if (text === "" && !ariaLabel) {
+            addIssue("Missing PDF description", 2);
+            link.style.border = "4px dashed red"; // Visual cue for testing
+        }
+    });
+
+    // Check for links with missing label
+    document.querySelectorAll("a").forEach((link) => {
+        const text = link.textContent.trim();
+        const ariaLabel = link.getAttribute("aria-label");
+        // Only count if link is not linking to a PDF (handled above)
+        if (!link.href.includes(".pdf") && text === "" && !ariaLabel) {
+            addIssue("Missing link label", 2);
+            link.style.border = "4px dashed blue"; // Visual cue for testing (blue border)
+        }
+    });
 
     // Convert `issueCounts` into an array of objects with `{ type, count }`
     const formattedIssues = Object.keys(issueCounts).map((issue) => ({
@@ -133,6 +147,18 @@ function fixMissingAltText() {
     document.querySelectorAll("img:not([alt])").forEach((img) => {
         img.alt = "Placeholder alt text";
         img.style.border = "none"; // Remove red border
+    });
+}
+
+function fixMissingLinkLabels() {
+    console.log("Fixing missing link labels...");
+    document.querySelectorAll("a").forEach((link) => {
+        // Only fix links that are not PDFs and are missing text & aria-label
+        if (!link.href.includes(".pdf") && link.textContent.trim() === "" && !link.getAttribute("aria-label")) {
+            link.textContent = "Link";
+            link.setAttribute("aria-label", "Link");
+            link.style.border = "none"; // Remove visual cue after fix
+        }
     });
 }
 
@@ -260,6 +286,7 @@ function fixAllIssues() {
     fixHeadingHierarchy();
     fixSmallFonts();
     fixMissingPdfDescriptions();
+    fixMissingLinkLabels();
 }
 
 // Create a mapping of issue types to fix functions
@@ -268,7 +295,8 @@ const issueFixFunctions = {
     "Low contrast detected": fixLowContrast,
     "Form input without a label": fixMissingFormLabels,
     "Small font size": fixSmallFonts,
-    "Missing PDF description": fixMissingPdfDescriptions
+    "Missing PDF description": fixMissingPdfDescriptions,
+    "Missing link label": fixMissingLinkLabels
 };
 
 // Listen for messages from the popup (App.tsx)
