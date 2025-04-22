@@ -1,6 +1,25 @@
-// Function to analyze accessibility issues
+// content.js – Accessibility Analysis & Enhancement Script
+
+/*
+  This script provides functions to:
+    1. Analyze accessibility issues on a web page (WCAG-based checks).
+    2. Offer visual cues for detected issues.
+    3. Automatically apply fixes for missing attributes, poor contrast, etc.
+    4. Support color-blindness simulation modes (Protanopia, Deuteranopia, Tritanopia).
+    5. Prevent auto-playing media for improved user control and accessibility.
+
+  Integration:
+    • Listens for messages from the extension popup (App.tsx) via chrome.runtime.
+    • Responds to actions: 'runAccessibilityCheck', 'fixIssue', and color‑blindness toggles.
+*/
+
+// =========================
+// Accessibility Analysis
+// =========================
+
 function analyzeAccessibility() {
     let score = 100;
+    // Map issue type to count and corresponding fix function
     let issueCounts = {
         "Missing alt attribute": { count: 0, fix: fixMissingAltText },
         "Low contrast detected": { count: 0, fix: fixLowContrast },
@@ -10,6 +29,7 @@ function analyzeAccessibility() {
         "Missing link label": { count: 0, fix: fixMissingLinkLabels }
     };
 
+    // Helper to record an issue, increment count, and penalize score
     const addIssue = (issue, penalty) => {
         if (issueCounts[issue]) {
             issueCounts[issue].count += 1;
@@ -19,266 +39,203 @@ function analyzeAccessibility() {
         score -= penalty;
     };
 
-    // Check for heading hierarchy issues
+    // 1. Heading hierarchy validation
     let headingIssues = analyzeHeadingHierarchy();
     headingIssues.forEach((issue) => addIssue("Heading hierarchy issues", 2));
 
-
-    // Check for missing alt text on images
+    // 2. Image alt text check
     document.querySelectorAll("img:not([alt])").forEach((img) => {
         addIssue("Missing alt attribute", 2);
         img.style.border = "4px solid red";
     });
 
-    // Check for small fonts
+    // 3. Small font detection (<12px is considered too small)
     document.querySelectorAll("*").forEach((el) => {
-        const computedFontSize = window.getComputedStyle(el).fontSize;
-        if (computedFontSize && computedFontSize.endsWith("px")) {
-            const size = parseFloat(computedFontSize);
-            if (size < 12) {
-                addIssue("Small font size", 2);
-            }
-        }
+        let size = parseFloat(window.getComputedStyle(el).fontSize) || 0;
+        if (size > 0 && size < 12) addIssue("Small font size", 2);
     });
 
-    // Check for low contrast
+    // 4. Low contrast detection (text color identical to background)
     document.querySelectorAll("*").forEach((el) => {
-        const element = el;
-        const color = window.getComputedStyle(element).color;
-        const bgColor = window.getComputedStyle(element).backgroundColor;
-
-        if (color === bgColor) {
-            addIssue("Low contrast detected", 2);
-        }
+        let style = window.getComputedStyle(el);
+        if (style.color === style.backgroundColor) addIssue("Low contrast detected", 2);
     });
 
-    // Check for missing form labels
+    // 5. Form fields missing labels
     document.querySelectorAll("input:not([aria-label]):not([aria-labelledby]):not([id])").forEach(() => {
         addIssue("Form input without a label", 2);
     });
 
-    // For anchor links pointing to a PDF
-    document.querySelectorAll('a[href*=".pdf"]').forEach((link) => {
-        const text = link.textContent.trim();
-        const ariaLabel = link.getAttribute("aria-label");
-        if (text === "" && !ariaLabel) {
+    // 6. PDF link descriptions (anchor tags pointing to .pdf with no text or aria-label)
+    document.querySelectorAll('a[href$=".pdf"]').forEach((link) => {
+        let text = link.textContent.trim();
+        let ariaLabel = link.getAttribute("aria-label");
+        if (!text && !ariaLabel) {
             addIssue("Missing PDF description", 2);
-            link.style.border = "4px dashed red"; // Visual cue for testing
+            link.style.border = "4px dashed red";
         }
     });
 
-    // Check for PDF links missing descriptions
-    document.querySelectorAll('a[href*=".pdf"]').forEach((link) => {
-        const text = link.textContent.trim();
-        const ariaLabel = link.getAttribute("aria-label");
-        if (text === "" && !ariaLabel) {
-            addIssue("Missing PDF description", 2);
-            link.style.border = "4px dashed red"; // Visual cue for testing
-        }
-    });
-
-    // Check for links with missing label
-    document.querySelectorAll("a").forEach((link) => {
-        const text = link.textContent.trim();
-        const ariaLabel = link.getAttribute("aria-label");
-        // Only count if link is not linking to a PDF (handled above)
-        if (!link.href.includes(".pdf") && text === "" && !ariaLabel) {
+    // 7. General links missing labels (non-PDF)
+    document.querySelectorAll("a:not([href$='.pdf'])").forEach((link) => {
+        let text = link.textContent.trim();
+        let ariaLabel = link.getAttribute("aria-label");
+        if (!text && !ariaLabel) {
             addIssue("Missing link label", 2);
-            link.style.border = "4px dashed blue"; // Visual cue for testing (blue border)
+            link.style.border = "4px dashed blue";
         }
     });
 
-    // Convert `issueCounts` into an array of objects with `{ type, count }`
-    const formattedIssues = Object.keys(issueCounts).map((issue) => ({
-        type: issue,
-        count: issueCounts[issue].count,
-    }));
-
-    return { score: Math.max(score, 0), issues: formattedIssues };
+    // Format results: array of { type, count }
+    let issues = Object.keys(issueCounts).map((type) => ({ type, count: issueCounts[type].count }));
+    return { score: Math.max(score, 0), issues };
 }
 
-// Function to check for improper heading hieracrhies
+// ================================
+// Heading Hierarchy Analysis / Fix
+// ================================
+
 function analyzeHeadingHierarchy() {
     console.log("🔍 Checking heading hierarchy...");
-
     let issues = [];
     let headings = Array.from(document.querySelectorAll("h1, h2, h3, h4, h5, h6"));
-    let previousLevel = 0;
+    let prevLevel = 0;
     let h1Count = 0;
 
-    headings.forEach((heading, index) => {
-        let level = parseInt(heading.tagName.replace("H", ""), 10);
-        let text = heading.textContent.trim();
+    headings.forEach((hdg) => {
+        let lvl = parseInt(hdg.tagName.charAt(1), 10);
+        let text = hdg.textContent.trim();
 
-        // Detect multiple <h1> elements
-        if (level === 1) {
+        if (lvl === 1) {
             h1Count++;
             if (h1Count > 1) {
                 issues.push("Multiple <h1> elements found.");
-                heading.style.border = "3px solid orange"; // Highlight issue
+                hdg.style.border = "3px solid orange";
             }
         }
-
-        // Detect skipped heading levels
-        if (previousLevel && level > previousLevel + 1) {
-            issues.push(`Heading level skipped: <h${previousLevel}> → <h${level}>.`);
-            heading.style.border = "3px solid red"; // Highlight issue
+        if (prevLevel && lvl > prevLevel + 1) {
+            issues.push(`Skipped heading level: h${prevLevel} → h${lvl}`);
+            hdg.style.border = "3px solid red";
         }
-
-        // Detect empty headings
         if (!text) {
-            issues.push(`Empty heading <h${level}> found.`);
-            heading.style.border = "3px solid purple";
+            issues.push(`Empty heading h${lvl} found.`);
+            hdg.style.border = "3px solid purple";
         }
-
-        previousLevel = level;
+        prevLevel = lvl;
     });
-
-    // Detect missing <h1>
-    if (h1Count === 0) {
-        issues.push("No <h1> element found on the page.");
-    }
-
+    if (h1Count === 0) issues.push("No <h1> element found on page.");
     return issues;
 }
 
-// Function to fix missing alt attributes
-function fixMissingAltText() {
-    document.querySelectorAll("img:not([alt])").forEach((img) => {
-        img.alt = "Placeholder alt text";
-        img.style.border = "none"; // Remove red border
-    });
-}
-
-function fixMissingLinkLabels() {
-    console.log("Fixing missing link labels...");
-    document.querySelectorAll("a").forEach((link) => {
-        // Only fix links that are not PDFs and are missing text & aria-label
-        if (!link.href.includes(".pdf") && link.textContent.trim() === "" && !link.getAttribute("aria-label")) {
-            link.textContent = "Link";
-            link.setAttribute("aria-label", "Link");
-            link.style.border = "none"; // Remove visual cue after fix
-        }
-    });
-}
-
 function fixHeadingHierarchy() {
-    console.log("🛠 Fixing Heading Hierarchy...");
-
+    console.log("🛠 Fixing heading hierarchy...");
     let headings = Array.from(document.querySelectorAll("h1, h2, h3, h4, h5, h6"));
-    let previousLevel = 0;
+    let prevLevel = 0;
     let h1Count = 0;
 
-    headings.forEach((heading, index) => {
-        let level = parseInt(heading.tagName.replace("H", ""), 10);
-        let text = heading.textContent.trim();
+    headings.forEach((hdg) => {
+        let lvl = parseInt(hdg.tagName.charAt(1), 10);
+        let text = hdg.textContent.trim();
 
-        // Fix multiple <h1> by converting extra ones to <h2>
-        if (level === 1) {
+        // Consolidate extra <h1> to <h2>
+        if (lvl === 1) {
             h1Count++;
             if (h1Count > 1) {
-                console.log(`Fixing multiple <h1>: Converting to <h2> → ${text}`);
-                let newHeading = document.createElement("h2");
-                newHeading.innerHTML = heading.innerHTML;
-                heading.replaceWith(newHeading);
+                let replacement = document.createElement("h2");
+                replacement.innerHTML = hdg.innerHTML;
+                hdg.replaceWith(replacement);
             }
         }
-
-        // Fix skipped heading levels by lowering it
-        if (previousLevel && level > previousLevel + 1) {
-            console.log(`Fixing skipped heading level: <h${level}> → <h${previousLevel + 1}>`);
-            let newHeading = document.createElement(`h${previousLevel + 1}`);
-            newHeading.innerHTML = heading.innerHTML;
-            heading.replaceWith(newHeading);
+        // Normalize skipped levels
+        if (prevLevel && lvl > prevLevel + 1) {
+            let newLevel = prevLevel + 1;
+            let repl = document.createElement(`h${newLevel}`);
+            repl.innerHTML = hdg.innerHTML;
+            hdg.replaceWith(repl);
         }
+        // Remove empty
+        if (!text) hdg.remove();
 
-        // Fix empty headings by removing them
-        if (!text) {
-            console.log(`Removing empty <h${level}>.`);
-            heading.remove();
-        }
-
-        previousLevel = level;
+        prevLevel = lvl;
     });
 
-    // Add an <h1> if missing
     if (h1Count === 0) {
-        console.log("Adding missing <h1> to the document.");
-        let newH1 = document.createElement("h1");
-        newH1.textContent = "Untitled Page";
-        document.body.insertBefore(newH1, document.body.firstChild);
+        let h1 = document.createElement("h1");
+        h1.textContent = "Untitled Page";
+        document.body.insertBefore(h1, document.body.firstChild);
     }
 }
 
-// Function to fix low contrast
+// =========================
+// Issue Fix Functions
+// =========================
+
+// Alt text fallback
+function fixMissingAltText() {
+    document.querySelectorAll("img:not([alt])").forEach((img) => {
+        img.alt = "Image description missing";
+        img.style.border = "none";
+    });
+}
+
+// Link labels fallback
+function fixMissingLinkLabels() {
+    console.log("🔧 Fixing missing link labels...");
+    document.querySelectorAll("a").forEach((link) => {
+        if (!link.href.endsWith('.pdf') && !link.textContent.trim() && !link.getAttribute('aria-label')) {
+            link.textContent = "Link";
+            link.setAttribute('aria-label', 'Link');
+            link.style.border = "none";
+        }
+    });
+}
+
+// Low contrast auto-adjust
 function fixLowContrast() {
     document.querySelectorAll("*").forEach((el) => {
-        const element = el;
-        const color = window.getComputedStyle(element).color;
-        const bgColor = window.getComputedStyle(element).backgroundColor;
-
-        if (color === bgColor) {
-            const parseRGB = (color) => {
-                const match = color.match(/\d+/g);
-                return match ? [parseInt(match[0]), parseInt(match[1]), parseInt(match[2])] : null;
-            };
-
-            const bgRGB = parseRGB(bgColor);
-
-            if (bgRGB) {
-                const brightness = (bgRGB[0] * 0.299 + bgRGB[1] * 0.587 + bgRGB[2] * 0.114);
-                element.style.color = brightness > 128 ? "#000000" : "#FFFFFF";
-            }
+        let style = window.getComputedStyle(el);
+        if (style.color === style.backgroundColor) {
+            let rgb = style.backgroundColor.match(/\d+/g).map(Number);
+            let brightness = rgb[0] * 0.299 + rgb[1] * 0.587 + rgb[2] * 0.114;
+            el.style.color = brightness > 128 ? '#000' : '#fff';
         }
     });
 }
 
-// Function to fix missing form labels
-// Use an api to generate descriptive input field or use context from nearby elements
+// Form label fallback
 function fixMissingFormLabels() {
     document.querySelectorAll("input:not([aria-label]):not([aria-labelledby]):not([id])").forEach((input) => {
-        input.setAttribute("aria-label", "Unnamed Input Field");
+        input.setAttribute('aria-label', 'Form field');
     });
 }
 
-// Function to fix small fonts: sets any computed font size below 12px to 12px
+// Minimum font size enforcement
 function fixSmallFonts() {
-    console.log("Fixing small fonts (increasing font size to 12px where needed)...");
+    console.log("🔧 Fixing small fonts to minimum 12px...");
     document.querySelectorAll("*").forEach((el) => {
-        const computedStyle = window.getComputedStyle(el);
-        const fontSize = computedStyle.fontSize;
-        if (fontSize && fontSize.endsWith("px")) {
-            let numericSize = parseFloat(fontSize);
-            if (numericSize < 12) {
-                el.style.fontSize = "12px";
-            }
-        }
+        let size = parseFloat(window.getComputedStyle(el).fontSize) || 0;
+        if (size > 0 && size < 12) el.style.fontSize = "12px";
     });
 }
 
-// Function to fix missing PDF descriptions (for links and embedded PDFs)
+// PDF description fixes for links/embeds
 function fixMissingPdfDescriptions() {
-    // Fix PDF links
-    document.querySelectorAll('a[href*=".pdf"]').forEach((link) => {
-        const text = link.textContent.trim();
-        const ariaLabel = link.getAttribute("aria-label");
-        if (text === "" && !ariaLabel) {
-            link.setAttribute("aria-label", "PDF Document");
-            link.textContent = "PDF Document";
-            link.style.border = "none"; // Remove visual cue after fix
+    document.querySelectorAll('a[href$=".pdf"]').forEach((link) => {
+        if (!link.textContent.trim() && !link.getAttribute('aria-label')) {
+            link.textContent = 'PDF Document';
+            link.setAttribute('aria-label', 'PDF Document');
+            link.style.border = 'none';
         }
     });
-
-    // Fix embedded PDFs
-    document.querySelectorAll('object[data*=".pdf"], embed[src*=".pdf"]').forEach((el) => {
-        if (!el.hasAttribute("aria-label")) {
-            el.setAttribute("aria-label", "Embedded PDF Document");
-            el.style.border = "none"; // Remove visual cue after fix
+    document.querySelectorAll('object[data$=".pdf"], embed[src$=".pdf"]').forEach((embed) => {
+        if (!embed.getAttribute('aria-label')) {
+            embed.setAttribute('aria-label', 'Embedded PDF Document');
+            embed.style.border = 'none';
         }
     });
 }
 
-// Function to fix all issues
+// Fix all detected issues with one call
 function fixAllIssues() {
     fixMissingAltText();
     fixLowContrast();
@@ -289,7 +246,7 @@ function fixAllIssues() {
     fixMissingLinkLabels();
 }
 
-// Create a mapping of issue types to fix functions
+// Mapping issue types to their fix functions
 const issueFixFunctions = {
     "Missing alt attribute": fixMissingAltText,
     "Low contrast detected": fixLowContrast,
@@ -299,23 +256,45 @@ const issueFixFunctions = {
     "Missing link label": fixMissingLinkLabels
 };
 
-// Listen for messages from the popup (App.tsx)
+// =========================
+// Runtime Message Listener
+// =========================
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "runAccessibilityCheck") {
+    if (request.action === 'runAccessibilityCheck') {
+        const { autoFix } = request;
+        if (autoFix) {
+            fixAllIssues();
+        }
         const result = analyzeAccessibility();
         sendResponse(result);
-    } else if (request.action === "fixIssue" && request.issueType) {
-        if (request.issueType === "Fix All") {
-            fixAllIssues();
-        } else if (issueFixFunctions[request.issueType]) {
+    }
+    else if (request.action === 'fixIssue') {
+        if (request.issueType === 'Fix All') fixAllIssues();
+        else if (issueFixFunctions[request.issueType]) {
             issueFixFunctions[request.issueType]();
         }
     }
 });
 
-// ====== Color Blindness Helpers & Modes ====== //
+// =========================
+// Media Autoplay Prevention
+// =========================
 
-// Utility to parse "rgb(255, 0, 0)" or "rgba(255, 0, 0, 1)" into [r, g, b]
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("video, audio").forEach((media) => {
+        if (!media.paused) { media.pause(); media.autoplay = false; media.controls = true; }
+    });
+    document.querySelectorAll("iframe").forEach((iframe) => {
+        if (/youtube\.com|vimeo\.com/.test(iframe.src)) iframe.src = iframe.src;
+    });
+});
+
+// ====================================
+// Color‑Blindness Simulation Modes
+// ====================================
+
+// Utility to parse CSS rgb/rgba strings
 function parseRGBString(rgbString) {
     const match = rgbString.match(/rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)/);
     if (match) {
@@ -338,58 +317,10 @@ function isCloseToBlue(r, g, b, threshold = 80) {
     return distance < threshold;
 }
 
-// ===== Image Overlay Helper =====
-// Wraps an image in a container (if not already) and adds an overlay
-function overlayImageFilter(img, overlayColor) {
-    // Wrap image in a container if not already wrapped
-    if (!img.parentElement.classList.contains("image-filter-container")) {
-        const container = document.createElement("div");
-        container.classList.add("image-filter-container");
-        container.style.position = "relative";
-        container.style.display = "inline-block";
-        // Insert container before the image and then move the image inside it
-        img.parentElement.insertBefore(container, img);
-        container.appendChild(img);
-    }
-    // Ensure the image is positioned beneath the overlay
-    img.style.position = "relative";
-    img.style.zIndex = "1";
+const PROTANOPIA_FILTER = "grayscale(30%) brightness(90%) sepia(20%) ...";
+const DEUTERANOPIA_FILTER = "grayscale(20%) brightness(90%) sepia(30%) ...";
+const TRITANOPIA_FILTER = "grayscale(20%) brightness(90%) sepia(10%) ...";
 
-    // Look for an existing overlay element; if not found, create one
-    let overlay = img.parentElement.querySelector(".image-filter-overlay");
-    if (!overlay) {
-        overlay = document.createElement("div");
-        overlay.classList.add("image-filter-overlay");
-        overlay.style.position = "absolute";
-        overlay.style.top = "0";
-        overlay.style.left = "0";
-        overlay.style.width = "100%";
-        overlay.style.height = "100%";
-        overlay.style.pointerEvents = "none"; // allow interactions to pass through
-        overlay.style.background = overlayColor; // e.g., "rgba(255,0,0,0.3)"
-        overlay.style.zIndex = "2"; // ensure overlay is on top
-        img.parentElement.appendChild(overlay);
-    } else {
-        // Update overlay color if it already exists
-        overlay.style.background = overlayColor;
-    }
-}
-
-
-// ===== Color-Blindness Modes ===== //
-
-// Define CSS filter strings for images in each mode
-
-// Blue Filter
-const PROTANOPIA_FILTER = "grayscale(30%) brightness(90%) sepia(20%) hue-rotate(200deg) saturate(300%) contrast(1.2)";
-
-// Magenta filter 
-const DEUTERANOPIA_FILTER = "grayscale(20%) brightness(90%) sepia(30%) hue-rotate(300deg) saturate(400%) contrast(1.2)";
-
-// Green filter
-const TRITANOPIA_FILTER = "grayscale(20%) brightness(90%) sepia(10%) hue-rotate(90deg) saturate(400%) contrast(1.2)";
-
-// Protanopia: red → blue for text/background; for images, apply a CSS filter
 function fixProtanopiaColors() {
     console.log("Fixing Protanopia Colors");
 
@@ -421,6 +352,7 @@ function fixProtanopiaColors() {
         img.style.filter = PROTANOPIA_FILTER;
     });
 }
+
 
 // Deuteranopia: green → magenta for text/background; for images, apply a CSS filter
 function fixDeuteranopiaColors() {
@@ -454,6 +386,7 @@ function fixDeuteranopiaColors() {
     });
 }
 
+
 // Tritanopia: blue → green for text/background; for images, apply a CSS filter
 function fixTritanopiaColors() {
     console.log("Fixing Tritanopia Colors");
@@ -486,40 +419,8 @@ function fixTritanopiaColors() {
     });
 }
 
-// Listen for messages from `App.tsx` for color-blindness modes
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "fixProtanopiaColors") {
-        fixProtanopiaColors();
-    } else if (request.action === "fixDeuteranopiaColors") {
-        fixDeuteranopiaColors();
-    } else if (request.action === "fixTritanopiaColors") {
-        fixTritanopiaColors();
-    }
+chrome.runtime.onMessage.addListener((req, snd, resp) => {
+    if (req.action === "fixProtanopiaColors") fixProtanopiaColors();
+    if (req.action === "fixDeuteranopiaColors") fixDeuteranopiaColors();
+    if (req.action === "fixTritanopiaColors") fixTritanopiaColors();
 });
-
-
-// Function to stop auto-playing videos & audio
-function stopAutoPlayVideos() {
-    console.log("🔇 Stopping all auto-playing videos and audio...");
-
-    document.querySelectorAll("video, audio").forEach((media) => {
-        if (!media.paused) {
-            media.pause();
-            media.autoplay = false;
-            media.controls = true; // Allow users to play manually if needed
-            console.log(`✔ Paused media:`, media);
-        }
-    });
-
-    // Stop embedded iframes like YouTube, Vimeo
-    document.querySelectorAll("iframe").forEach((iframe) => {
-        let src = iframe.src;
-        if (src.includes("youtube.com") || src.includes("vimeo.com")) {
-            iframe.src = src; // Reset iframe to stop video
-            console.log(`✔ Stopped iframe media:`, iframe);
-        }
-    });
-}
-
-// Run automatically when the DOM is fully loaded
-document.addEventListener("DOMContentLoaded", stopAutoPlayVideos);

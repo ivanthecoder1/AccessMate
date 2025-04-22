@@ -1,138 +1,179 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import "./App.css";
 
-type Issue = {
-	type: string;
-	count: number;
-};
+type Issue = { type: string; count: number };
+const STORAGE_KEY = "accessMateAutoFix";
 
-function App() {
-	const [score, setScore] = useState<number | null>(null);
-	const [issues, setIssues] = useState<Issue[]>([]);
-	const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+export default function App() {
+  const [score, setScore] = useState<number | null>(null);
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [autoFix, setAutoFix] = useState<boolean>(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
-	const checkAccessibility = () => {
-		if (!chrome?.tabs) return;
-		chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-			if (tabs[0]?.id) {
-				chrome.tabs.sendMessage(tabs[0].id, { action: "runAccessibilityCheck" }, (response) => {
-					if (response) {
-						setScore(response.score);
-						setIssues(response.issues);
-					}
-				});
-			}
-		});
-	};
+  useEffect(() => {
+    chrome.storage.sync.get([STORAGE_KEY], (res) => {
+      setAutoFix(res[STORAGE_KEY] ?? false);
+    });
+  }, []);
 
-	const fixIssue = (issueType: string) => {
-		if (!chrome?.tabs) return;
-		chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-			if (tabs[0]?.id) {
-				chrome.tabs.sendMessage(tabs[0].id, { action: "fixIssue", issueType });
-			}
-		});
-	};
+  const toggleAutoFix = () => {
+    const next = !autoFix;
+    setAutoFix(next);
+    chrome.storage.sync.set({ [STORAGE_KEY]: next });
+  };
 
-	const closeExtension = () => {
-		window.close();
-	};
+  const checkAccessibility = () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tabId = tabs[0]?.id;
+      if (typeof tabId === "number") {
+        chrome.tabs.sendMessage(
+          tabId,
+          { action: "runAccessibilityCheck", autoFix },
+          (response) => {
+            if (response) {
+              setScore(response.score);
+              setIssues(response.issues);
+              resultsRef.current?.focus();
+            }
+          }
+        );
+      }
+    });
+  };
 
-	// Color blindness functions
-	const fixProtanopia = () => {
-		if (!chrome?.tabs) return;
-		chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-			if (tabs[0]?.id) {
-				chrome.tabs.sendMessage(tabs[0].id, { action: "fixProtanopiaColors" });
-			}
-		});
-		setIsDropdownOpen(false); // Close the dropdown if desired
-	};
+  const fixIssue = (issueType: string) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tabId = tabs[0]?.id;
+      if (typeof tabId === "number") {
+        chrome.tabs.sendMessage(tabId, { action: "fixIssue", issueType });
+      }
+    });
+  };
 
-	const fixDeuteranopia = () => {
-		if (!chrome?.tabs) return;
-		chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-			if (tabs[0]?.id) {
-				chrome.tabs.sendMessage(tabs[0].id, { action: "fixDeuteranopiaColors" });
-			}
-		});
-		setIsDropdownOpen(false);
-	};
+  const closeExtension = () => window.close();
 
-	const fixTritanopia = () => {
-		if (!chrome?.tabs) return;
-		chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-			if (tabs[0]?.id) {
-				chrome.tabs.sendMessage(tabs[0].id, { action: "fixTritanopiaColors" });
-			}
-		});
-		setIsDropdownOpen(false);
-	};
+  const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
+  const selectMode = (mode: string) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tabId = tabs[0]?.id;
+      if (typeof tabId === "number") {
+        chrome.tabs.sendMessage(tabId, { action: mode });
+      }
+    });
+    setIsDropdownOpen(false);
+  };
 
-	const toggleDropdown = () => {
-		setIsDropdownOpen(!isDropdownOpen);
-	};
+  return (
+    <div
+      className="extension-container"
+      role="application"
+      aria-label="AccessMate accessibility tool"
+    >
+      <header className="top-bar">
+        <img src="icons/logo.png" alt="AccessMate Logo" className="logo" />
+        <h1 className="title">AccessMate</h1>
+        <button
+          className="close-btn"
+          onClick={closeExtension}
+          aria-label="Close extension"
+        >
+          ×
+        </button>
+      </header>
 
-	return (
-		<div className="extension-container">
-			{/* Top Bar */}
-			<div className="top-bar">
-				<img src="icons/logo.png" alt="AccessMate Logo" className="logo" />
-				<span className="title">AccessMate</span>
-				<button className="close-btn" onClick={closeExtension}>&times;</button>
-			</div>
+      <div className="auto-fix-setting">
+        <label htmlFor="autoFix">
+          <input
+            id="autoFix"
+            type="checkbox"
+            checked={autoFix}
+            onChange={toggleAutoFix}
+          />
+          Auto-fix on page load
+        </label>
+      </div>
 
-			{/* Color Blindness Dropdown */}
-			<div className="dropdown">
-				<button className="dropdown-toggle" onClick={toggleDropdown}>
-					Color Blindness Mode
-				</button>
-				{isDropdownOpen && (
-					<div className="dropdown-menu">
-						<button onClick={fixProtanopia}>Protanopia</button>
-						<button onClick={fixDeuteranopia}>Deuteranopia</button>
-						<button onClick={fixTritanopia}>Tritanopia</button>
-					</div>
-				)}
-			</div>
+      <nav aria-label="Color blindness modes">
+        <button
+          id="color-toggle"
+          className="dropdown-toggle"
+          aria-haspopup="true"
+          aria-expanded={isDropdownOpen}
+          aria-controls="color-menu"
+          onClick={toggleDropdown}
+        >
+          Color Blindness Mode
+        </button>
+        {isDropdownOpen && (
+          <ul
+            id="color-menu"
+            role="menu"
+            aria-labelledby="color-toggle"
+            className="dropdown-menu"
+          >
+            <li role="menuitem">
+              <button onClick={() => selectMode("fixProtanopiaColors")}>Protanopia</button>
+            </li>
+            <li role="menuitem">
+              <button onClick={() => selectMode("fixDeuteranopiaColors")}>Deuteranopia</button>
+            </li>
+            <li role="menuitem">
+              <button onClick={() => selectMode("fixTritanopiaColors")}>Tritanopia</button>
+            </li>
+          </ul>
+        )}
+      </nav>
 
-			{/* Main Content */}
-			<div className="content">
-				<button className="scan-btn" onClick={checkAccessibility}>
-					Check Accessibility
-				</button>
+      <main>
+        <button className="scan-btn" onClick={checkAccessibility} aria-controls="results">
+          Check Accessibility
+        </button>
 
-				{score !== null && (
-					<div>
-						<p className="score">
-							Accessibility Score: <strong>{score}%</strong>
-						</p>
-
-						{score === 100 && issues.length === 0 ? (
-							<p className="no-issues">✅ No issues detected!</p>
-						) : (
-							<>
-								<h4 className="issues-heading">❌ Issues Detected:</h4>
-								<ul className="issues-list">
-									{issues.map((issue, index) => (
-										<li key={index} className="issue-item">
-											{issue.type}: {issue.count} Occurrences
-											<button className="fix-btn" onClick={() => fixIssue(issue.type)}>
-												Fix
-											</button>
-										</li>
-									))}
-								</ul>
-								<button className="fix-all-btn" onClick={() => fixIssue("Fix All")}>
-									Fix All
-								</button>
-							</>
-						)}
-					</div>
-				)}
-			</div>
-		</div>
-	);
+        <section
+          id="results"
+          tabIndex={-1}
+          ref={resultsRef}
+          role="region"
+          aria-live="polite"
+          aria-atomic="true"
+          className="content"
+        >
+          {score !== null && (
+            <>
+              <h2>Accessibility Score: {score}%</h2>
+              {score === 100 && issues.length === 0 ? (
+                <p>✅ No issues detected!</p>
+              ) : (
+                <>
+                  <h3>Issues Detected:</h3>
+                  <ul>
+                    {issues.map((issue, i) => (
+                      <li key={i} className="issue-item">
+                        {issue.type}: {issue.count}{' '}
+                        <button
+                          className="fix-btn"
+                          onClick={() => fixIssue(issue.type)}
+                          aria-label={`Fix ${issue.type}`}
+                        >
+                          Fix
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    className="fix-all-btn"
+                    onClick={() => fixIssue("Fix All")}
+                    aria-label="Fix all issues"
+                  >
+                    Fix All
+                  </button>
+                </>
+              )}
+            </>
+          )}
+        </section>
+      </main>
+    </div>
+  );
 }
-
-export default App;

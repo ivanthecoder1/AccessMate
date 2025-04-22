@@ -56,10 +56,45 @@ body {
   color: black;
 }
 
+/* Auto-fix Toggle */
+.auto-fix-setting {
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.auto-fix-setting label {
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+}
+
+.auto-fix-setting input[type="checkbox"] {
+  margin-right: 8px;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
 /* Main Content */
 .content {
   padding: 12px;
   text-align: center;
+}
+
+/* Results Section */
+#results {
+  padding: 12px;
+  text-align: left;
+}
+
+#results h2 {
+  font-size: 1.1rem;
+  margin-top: 12px;
+}
+
+#results h3 {
+  font-size: 1rem;
+  margin-top: 10px;
 }
 
 /* Check Accessibility button */
@@ -201,4 +236,17 @@ body {
 
 .dropdown-menu button:hover {
   background: #f1f1f1;
+}
+
+/* Focus outlines for accessibility */
+button:focus,
+input:focus,
+.dropdown-toggle:focus,
+.scan-btn:focus,
+.fix-btn:focus,
+.fix-all-btn:focus,
+.close-btn:focus,
+.dropdown-menu button:focus {
+  outline: 2px solid #005fa3;
+  outline-offset: 2px;
 }
